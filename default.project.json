@@ -1,0 +1,39 @@
+{
+  "name": "FishABaddie",
+  "servePort": 34872,
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "Shared": {
+        "$path": "roblox/src/ReplicatedStorage/Shared"
+      },
+      "Remotes": {
+        "$className": "Folder"
+      },
+      "Assets": {
+        "$className": "Folder",
+        "$path": "roblox/src/ReplicatedStorage/Assets",
+        "Baddies": {
+          "$className": "Folder",
+          "$path": "roblox/src/ReplicatedStorage/Assets/Baddies"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "$path": "roblox/src/ServerScriptService"
+    },
+    "StarterPlayer": {
+      "$path": "roblox/src/StarterPlayer"
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "Game": {
+        "$className": "Folder",
+        "$path": "roblox/src/Workspace/Game"
+      }
+    }
+  }
+}

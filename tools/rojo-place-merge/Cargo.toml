@@ -1,0 +1,8 @@
+[package]
+name = "rojo-place-merge"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rbx_binary = "=2.0.1"
+rbx_dom_weak = "=4.1.0"

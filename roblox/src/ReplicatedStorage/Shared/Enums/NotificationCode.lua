@@ -1,0 +1,25 @@
+local NotificationCode = {
+	Success = "Success",
+	Error = "Error",
+	CatchSuccess = "CatchSuccess",
+	CatchFail = "CatchFail",
+	IncomeClaimed = "IncomeClaimed",
+	UpgradePurchased = "UpgradePurchased",
+	RebirthComplete = "RebirthComplete",
+	FusionComplete = "FusionComplete",
+	SecretConverted = "SecretConverted",
+	CrateOpened = "CrateOpened",
+	PromptPurchase = "PromptPurchase",
+	TraitRerolled = "TraitRerolled",
+	TraitLocked = "TraitLocked",
+	TraitUpgraded = "TraitUpgraded",
+	ComponentUpgraded = "ComponentUpgraded",
+	RareCatchBroadcast = "RareCatchBroadcast",
+	SecretCaughtBroadcast = "SecretCaughtBroadcast",
+	ShopOpened = "ShopOpened",
+	BaddieHeld = "BaddieHeld",
+	BaddiePlaced = "BaddiePlaced",
+	BaddiePickedUp = "BaddiePickedUp",
+}
+
+return table.freeze(NotificationCode)

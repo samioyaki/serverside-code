@@ -1,0 +1,39 @@
+{
+  "name": "FishABaddie",
+  "servePort": 34872,
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "Shared": {
+        "$path": "src/ReplicatedStorage/Shared"
+      },
+      "Remotes": {
+        "$className": "Folder"
+      },
+      "Assets": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/Assets",
+        "Baddies": {
+          "$className": "Folder",
+          "$path": "src/ReplicatedStorage/Assets/Baddies"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService"
+    },
+    "StarterPlayer": {
+      "$path": "src/StarterPlayer"
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "Game": {
+        "$className": "Folder",
+        "$path": "src/Workspace/Game"
+      }
+    }
+  }
+}
