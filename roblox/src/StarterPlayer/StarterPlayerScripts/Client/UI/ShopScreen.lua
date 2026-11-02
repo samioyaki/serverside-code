@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local PolicyService = game:GetService("PolicyService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
@@ -35,6 +36,7 @@ local TABS = {
 	{ Id = "PlayerUpgrades", Name = "Player Upgrades" },
 	{ Id = "Rebirth", Name = "Rebirth" },
 	{ Id = "Boosts", Name = "Boosts / Crates" },
+	{ Id = "Traits", Name = "Trait Lab" },
 	{ Id = "Premium", Name = "Premium" },
 }
 
@@ -47,7 +49,8 @@ local SHOP_TAB_BY_ID = {
 	BoostShop = "Boosts",
 	CrateShop = "Boosts",
 	PremiumShop = "Premium",
-	TraitLab = "Premium",
+	TraitLab = "Traits",
+	FusionShrine = "Traits",
 }
 
 local PLAYER_UPGRADE_ENTRY_BY_ID = {
@@ -139,6 +142,16 @@ local function getProductDefinition(productKey)
 	return ProductConfig.DeveloperProducts[productKey] or ProductConfig.GamePasses[productKey]
 end
 
+local function isProductConfigured(productKey)
+	if productKey == "InstantRebirth" then
+		return (ProductConfig.DeveloperProducts.InstantRebirthLow.ProductId or 0) > 0
+			and (ProductConfig.DeveloperProducts.InstantRebirthMid.ProductId or 0) > 0
+			and (ProductConfig.DeveloperProducts.InstantRebirthHigh.ProductId or 0) > 0
+	end
+	local definition = getProductDefinition(productKey)
+	return definition ~= nil and ((definition.ProductId or definition.GamePassId or 0) > 0)
+end
+
 local function isProductOwned(replica, productKey)
 	local pass = ProductConfig.GamePasses[productKey]
 	if pass then
@@ -227,6 +240,8 @@ function ShopScreen:MakeSection(parent, title, subtitle)
 end
 
 function ShopScreen:MakeRow(parent, title, body, priceText, buttonText, disabled, callback)
+	local viewport = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+	local narrow = viewport.X < 700
 	local row = create("Frame", {
 		BackgroundColor3 = Color3.fromRGB(31, 38, 50),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -247,8 +262,8 @@ function ShopScreen:MakeRow(parent, title, body, priceText, buttonText, disabled
 		Size = UDim2.new(1, 0, 0, 0),
 	}, row)
 
-	local layout = create("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
+	create("UIListLayout", {
+		FillDirection = narrow and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal,
 		Padding = UDim.new(0, 10),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
@@ -257,7 +272,7 @@ function ShopScreen:MakeRow(parent, title, body, priceText, buttonText, disabled
 	local textColumn = create("Frame", {
 		BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Size = UDim2.new(1, -270, 0, 0),
+		Size = narrow and UDim2.new(1, 0, 0, 0) or UDim2.new(1, -270, 0, 0),
 	}, line)
 	create("UIListLayout", {
 		Padding = UDim.new(0, 3),
@@ -272,11 +287,14 @@ function ShopScreen:MakeRow(parent, title, body, priceText, buttonText, disabled
 		Text = priceText,
 		TextColor3 = Color3.fromRGB(255, 218, 92),
 		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Size = UDim2.fromOffset(116, 28),
+		TextXAlignment = narrow and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
+		Size = narrow and UDim2.new(1, 0, 0, 24) or UDim2.fromOffset(116, 28),
 	}, line)
 
-	self:MakeButton(line, buttonText, disabled, callback)
+	local button = self:MakeButton(line, buttonText, disabled, callback)
+	if narrow then
+		button.Size = UDim2.new(1, 0, 0, 38)
+	end
 	return row
 end
 
@@ -284,6 +302,7 @@ function ShopScreen:BuildGui()
 	local playerGui = localPlayer:WaitForChild("PlayerGui")
 	local gui = create("ScreenGui", {
 		Name = "FishABaddieShop",
+		DisplayOrder = 20,
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 		Enabled = false,
@@ -302,6 +321,7 @@ function ShopScreen:BuildGui()
 		Position = UDim2.fromScale(0.5, 0.52),
 		Size = UDim2.new(0.9, 0, 0.82, 0),
 	}, shade)
+	self.Root = root
 	root.ClipsDescendants = true
 	addCorner(root, 8)
 	addStroke(root, Color3.fromRGB(74, 88, 108), 0)
@@ -349,10 +369,15 @@ function ShopScreen:BuildGui()
 		Size = UDim2.new(1, 0, 1, -58),
 	}, root)
 
-	local sidebar = create("Frame", {
+	local sidebar = create("ScrollingFrame", {
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		BackgroundColor3 = Color3.fromRGB(23, 29, 39),
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		ScrollBarThickness = 4,
 		Size = UDim2.new(0, 172, 1, 0),
 	}, body)
+	self.Sidebar = sidebar
 	create("UIPadding", {
 		PaddingBottom = UDim.new(0, 12),
 		PaddingLeft = UDim.new(0, 10),
@@ -400,6 +425,7 @@ function ShopScreen:BuildGui()
 	}, self.Content)
 
 	self:BuildPrompt(gui)
+	self:ApplyResponsiveLayout()
 end
 
 function ShopScreen:BuildPrompt(gui)
@@ -417,6 +443,7 @@ function ShopScreen:BuildPrompt(gui)
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(420, 210),
 	}, shade)
+	self.PromptModal = modal
 	addCorner(modal, 8)
 	addStroke(modal, Color3.fromRGB(83, 101, 128), 0)
 	create("UIPadding", {
@@ -455,6 +482,18 @@ function ShopScreen:BuildPrompt(gui)
 	end)
 end
 
+function ShopScreen:ApplyResponsiveLayout()
+	local viewport = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+	local narrow = viewport.X < 700
+	local sidebarWidth = narrow and 112 or 172
+	self.Root.Size = narrow and UDim2.new(0.96, 0, 0.9, 0) or UDim2.new(0.9, 0, 0.82, 0)
+	self.Sidebar.Size = UDim2.new(0, sidebarWidth, 1, 0)
+	self.Content.Position = UDim2.fromOffset(sidebarWidth, 0)
+	self.Content.Size = UDim2.new(1, -sidebarWidth, 1, 0)
+	self.PromptModal.Size = UDim2.fromOffset(math.min(420, viewport.X - 24), 210)
+	self.WalletLabel.Visible = not narrow
+end
+
 function ShopScreen:RefreshPolicy()
 	task.spawn(function()
 		local ok, info = pcall(function()
@@ -472,6 +511,14 @@ function ShopScreen:Init(network, replicaClient)
 	self.ReplicaClient = replicaClient
 	self:BuildGui()
 	self:RefreshPolicy()
+	if Workspace.CurrentCamera then
+		Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			self:ApplyResponsiveLayout()
+			if self.Gui.Enabled then
+				self:Render()
+			end
+		end)
+	end
 
 	self.Replica = replicaClient:Get()
 	replicaClient:Subscribe(function(replica)
@@ -510,9 +557,10 @@ function ShopScreen:Render()
 
 	local wallet = replica.Wallet or {}
 	self.WalletLabel.Text = string.format(
-		"Coins %s   Shards %s   Rebirth %s",
+		"Coins %s   Prestige %s   Fusion %s   Rebirth %s",
 		formatNumber(wallet.Coins or 0),
 		formatNumber(wallet.RebirthShards or 0),
+		formatNumber(wallet.FusionShards or 0),
 		formatNumber((replica.Progression and replica.Progression.RebirthCount) or 0)
 	)
 
@@ -530,8 +578,39 @@ function ShopScreen:Render()
 		self:RenderRebirth()
 	elseif self.CurrentTab == "Boosts" then
 		self:RenderBoostsAndCrates()
+	elseif self.CurrentTab == "Traits" then
+		self:RenderTraits()
 	elseif self.CurrentTab == "Premium" then
 		self:RenderPremium()
+	end
+end
+
+function ShopScreen:RenderTraits()
+	local replica = self.Replica
+	local fusionShards = replica.Wallet and replica.Wallet.FusionShards or 0
+	self:MakeSection(
+		self.Content,
+		"Trait Lab",
+		string.format(
+			"Fusion shards: %s. Inspect a placed baddie to fuse three unplaced duplicates, then spend the shards here.",
+			formatNumber(fusionShards)
+		)
+	)
+
+	for _, entryId in ipairs({ "TraitRerollCredit", "TargetedTraitCredit", "TraitUpgradeCredit" }) do
+		local entry = ShopCatalog.Definitions[entryId]
+		local owned = replica.Premium and replica.Premium.Products and (replica.Premium.Products[entry.ProductKey] or 0) or 0
+		self:MakeRow(
+			self.Content,
+			entry.DisplayName,
+			string.format("Owned credits: %d. Use from placed-baddie inspection.", owned),
+			formatNumber(entry.Price) .. " fusion shards",
+			"Buy Credit",
+			fusionShards < entry.Price,
+			function()
+				self.Network:SendShop({ Action = "Purchase", EntryId = entryId, Quantity = 1 })
+			end
+		)
 	end
 end
 
@@ -601,7 +680,8 @@ function ShopScreen:RenderRodComponents(rodId)
 			})
 		end)
 
-		self:MakeRow(self.Content, "Instant Max " .. componentName, "Robux shortcut for the selected rod component.", formatRobux(self:GetProductPrice("InstantMaxComponent")), maxed and "Maxed" or "Buy", maxed, function()
+		local instantConfigured = isProductConfigured("InstantMaxComponent")
+		self:MakeRow(self.Content, "Instant Max " .. componentName, instantConfigured and "Robux shortcut for the selected rod component." or "Add a product ID in ProductConfig to enable.", formatRobux(self:GetProductPrice("InstantMaxComponent")), maxed and "Maxed" or (instantConfigured and "Buy" or "Unavailable"), maxed or not instantConfigured, function()
 			self.Network:SendRodComponent({
 				Action = "InstantMaxComponent",
 				RodId = rodId,
@@ -616,7 +696,8 @@ function ShopScreen:RenderPlayerUpgrades()
 	self:MakeSection(self.Content, "Player Upgrades", "Coin upgrades are strong fishing optimizations and reset when you rebirth.")
 
 	local plotSlots = replica.Progression and replica.Progression.PlotSlots or 10
-	self:MakeRow(self.Content, "+2 Baddie Slots", "Current effective slots: " .. tostring(plotSlots), "10,000 coins", "Buy", false, function()
+	local plotMaxed = plotSlots >= 60
+	self:MakeRow(self.Content, "+2 Baddie Slots", "Current effective slots: " .. tostring(plotSlots), "10,000 coins", plotMaxed and "Maxed" or "Buy", plotMaxed, function()
 		self.Network:SendShop({ Action = "Purchase", EntryId = "PlotSlot1", Quantity = 1 })
 	end)
 
@@ -669,6 +750,7 @@ function ShopScreen:RenderRebirth()
 	local incomeBps = math.floor(secretCount * 200 * conversionMultiplier / 10000)
 	local luckBps = math.floor(secretCount * 100 * conversionMultiplier / 10000)
 
+	local instantRebirthConfigured = isProductConfigured("InstantRebirth")
 	self:MakeRow(
 		self.Content,
 		"Execute Rebirth",
@@ -686,8 +768,8 @@ function ShopScreen:RenderRebirth()
 		"Instant Rebirth",
 		"Skip the current coin requirement and take the next rebirth reward now.",
 		formatRobux(self:GetProductPrice("InstantRebirth")),
-		"Buy",
-		false,
+		instantRebirthConfigured and "Buy" or "Unavailable",
+		not instantRebirthConfigured,
 		function()
 			self.Network:SendShop({ Action = "PromptProduct", EntryId = "InstantRebirth" })
 		end
@@ -716,7 +798,8 @@ function ShopScreen:RenderRebirth()
 	self:MakeSection(self.Content, "Shard Packs", "Robux shard packs accelerate the permanent optimizer tree.")
 	for _, productKey in ipairs({ "CurrencyPack100", "CurrencyPack1000" }) do
 		local product = ProductConfig.DeveloperProducts[productKey]
-		self:MakeRow(self.Content, product.DisplayName, "Prestige Shards for the Rebirth Shop.", formatRobux(product.PriceRobux), "Buy", false, function()
+		local configured = isProductConfigured(productKey)
+		self:MakeRow(self.Content, product.DisplayName, configured and "Prestige Shards for the Rebirth Shop." or "Add a product ID in ProductConfig to enable.", formatRobux(product.PriceRobux), configured and "Buy" or "Unavailable", not configured, function()
 			self.Network:SendShop({ Action = "PromptProduct", EntryId = productKey })
 		end)
 	end
@@ -783,13 +866,14 @@ function ShopScreen:RenderBoostsAndCrates()
 		local crate = CrateConfig.Definitions[crateId]
 		local owned = replica.Inventory and replica.Inventory.Crates and (replica.Inventory.Crates[crateId] or 0) or 0
 		local product = ProductConfig.DeveloperProducts[crate.ProductKey]
+		local canBuy = isProductConfigured(crate.ProductKey)
 		self:MakeRow(
 			self.Content,
 			crate.DisplayName,
 			string.format("Owned: %d | Odds: %s", owned, self:GetCrateOddsText(crateId)),
 			formatRobux(product and product.PriceRobux or 0),
-			owned > 0 and "Open" or "Buy",
-			self.PaidRandomRestricted,
+			owned > 0 and "Open" or (canBuy and "Buy" or "Unavailable"),
+			self.PaidRandomRestricted or (owned <= 0 and not canBuy),
 			function()
 				if owned > 0 then
 					self.Network:SendCrate({ Action = "OpenOwnedCrate", CrateId = crateId })
@@ -807,13 +891,14 @@ function ShopScreen:RenderPremium()
 	for _, productKey in ipairs(GAMEPASS_ORDER) do
 		local pass = ProductConfig.GamePasses[productKey]
 		local owned = isProductOwned(replica, productKey)
+		local configured = isProductConfigured(productKey)
 		self:MakeRow(
 			self.Content,
 			pass.DisplayName,
 			owned and "Owned permanently." or "Permanent account upgrade.",
 			formatRobux(pass.PriceRobux),
-			owned and "Owned" or "Buy",
-			owned,
+			owned and "Owned" or (configured and "Buy" or "Unavailable"),
+			owned or not configured,
 			function()
 				self.Network:SendShop({ Action = "PromptProduct", EntryId = productKey })
 			end
@@ -824,13 +909,14 @@ function ShopScreen:RenderPremium()
 	for _, productKey in ipairs(PREMIUM_PRODUCT_ORDER) do
 		local product = ProductConfig.DeveloperProducts[productKey]
 		local owned = isProductOwned(replica, productKey)
+		local configured = isProductConfigured(productKey)
 		self:MakeRow(
 			self.Content,
 			product.DisplayName,
 			owned and "Already owned." or "Robux acceleration item.",
 			formatRobux(product.PriceRobux),
-			owned and "Owned" or "Buy",
-			owned,
+			owned and "Owned" or (configured and "Buy" or "Unavailable"),
+			owned or not configured,
 			function()
 				self.Network:SendShop({ Action = "PromptProduct", EntryId = productKey })
 			end
@@ -839,6 +925,9 @@ function ShopScreen:RenderPremium()
 end
 
 function ShopScreen:ShowPremiumPrompt(category, productKey, title, body)
+	if not isProductConfigured(productKey) then
+		return
+	end
 	local now = os.clock()
 	if self.SessionPromptCount >= 3 then
 		return

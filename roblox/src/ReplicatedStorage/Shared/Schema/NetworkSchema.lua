@@ -21,6 +21,7 @@ local NetworkSchema = {
 		CrateRequest = { MaxCalls = 8, WindowSeconds = 3 },
 		TraitRequest = { MaxCalls = 6, WindowSeconds = 3 },
 		RodComponentRequest = { MaxCalls = 10, WindowSeconds = 3 },
+		DatingRequest = { MaxCalls = 4, WindowSeconds = 3 },
 	},
 	FishingRequest = {
 		AllowedActions = setFromArray({ "BeginCast", "ResolveCatch", "ReleaseCast", "CancelCast" }),
@@ -36,6 +37,8 @@ local NetworkSchema = {
 			"ClearHeldBaddie",
 			"PlaceHeld",
 			"PickupCell",
+			"VisitPlot",
+			"VisitDock",
 		}),
 		AllowedRotations = setFromArray({ 0, 90, 180, 270 }),
 		MinGrid = 1,
@@ -81,6 +84,10 @@ local NetworkSchema = {
 		AllowedActions = setFromArray({ "UpgradeComponent", "InstantMaxComponent", "InstantMaxAllComponents" }),
 		MaxRodIdLength = 64,
 		AllowedComponents = setFromArray({ "Line", "Hook", "Reel" }),
+	},
+	DatingRequest = {
+		AllowedActions = setFromArray({ "DateBaddie" }),
+		MaxBaddieIdLength = 64,
 	},
 }
 

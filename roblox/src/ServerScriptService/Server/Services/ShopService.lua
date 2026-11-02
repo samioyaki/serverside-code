@@ -4,6 +4,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 
 local FormulaUtil = require(Shared.Util.FormulaUtil)
 local PlayerUpgradeConfig = require(Shared.Config.PlayerUpgradeConfig)
+local PlotConfig = require(Shared.Config.PlotConfig)
 local RebirthUpgradeConfig = require(Shared.Config.RebirthUpgradeConfig)
 local ShopCatalog = require(Shared.Config.ShopCatalog)
 local RodConfig = require(Shared.Config.RodConfig)
@@ -54,6 +55,7 @@ function ShopService:Purchase(player, entryId, quantity)
 		"Leaderstats",
 		"PlayerUpgrades",
 		"RebirthUpgrades",
+		"Premium",
 	}
 
 	self.Registry:Get("PlayerDataService"):MutateProfile(player, "PurchaseShopEntry", publishedPaths, function(_, profile)
@@ -76,6 +78,9 @@ function ShopService:Purchase(player, entryId, quantity)
 			profile.Progression.EquippedRodId = entry.RodId
 			profile.Unlocks.ShopEntries[entryId] = true
 		elseif entry.Type == "PlotSlot" then
+			if profile.Progression.PlotSlots + (entry.Amount * quantity) > PlotConfig.MaxBaseSlots then
+				fail("UpgradeMaxLevel")
+			end
 			self.Registry:Get("EconomyService"):RemoveCoins(profile, totalCost)
 			profile.Progression.PlotSlots += entry.Amount * quantity
 		elseif entry.Type == "Boost" then
@@ -92,6 +97,12 @@ function ShopService:Purchase(player, entryId, quantity)
 			self.Registry:Get("MonetizationService"):AssertPaidRandomItemsAllowed(player)
 			self.Registry:Get("EconomyService"):RemoveCoins(profile, totalCost)
 			profile.Inventory.Crates[entry.CrateId] = (profile.Inventory.Crates[entry.CrateId] or 0) + (entry.Quantity * quantity)
+		elseif entry.Type == "TraitCredit" then
+			if profile.Wallet.FusionShards < totalCost then
+				fail("NotEnoughFusionShards")
+			end
+			profile.Wallet.FusionShards -= totalCost
+			profile.Premium.Products[entry.ProductKey] = (profile.Premium.Products[entry.ProductKey] or 0) + quantity
 		elseif entry.Type == "PlayerUpgrade" then
 			if quantity ~= 1 then
 				fail("InvalidShopAction")

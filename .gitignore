@@ -2,3 +2,4 @@ build/
 *.rbxlx
 *.rbxm
 *.rbxmx
+!roblox/assets/Baddies/*.rbxm

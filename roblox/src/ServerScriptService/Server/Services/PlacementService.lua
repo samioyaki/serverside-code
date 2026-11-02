@@ -8,6 +8,7 @@ local PlotConfig = require(Shared.Config.PlotConfig)
 local RarityConfig = require(Shared.Config.RarityConfig)
 local BaddieState = require(Shared.Enums.BaddieState)
 local GridUtil = require(Shared.Util.GridUtil)
+local PlaceholderFactory = require(Shared.Util.PlaceholderFactory)
 
 local PlacementService = {}
 PlacementService.__index = PlacementService
@@ -158,34 +159,74 @@ function PlacementService:_getBaddieAsset(templateId)
 	return baddieAssets and baddieAssets:FindFirstChild(templateId)
 end
 
-function PlacementService:_createToolHandle(templateId, color)
+function PlacementService:_createToolHandle(tool, templateId, color)
 	local asset = self:_getBaddieAsset(templateId)
-	local handle = nil
-
-	if asset and asset:IsA("BasePart") then
-		handle = asset:Clone()
-	elseif asset and asset:IsA("Model") then
-		local part = asset.PrimaryPart or asset:FindFirstChildWhichIsA("BasePart", true)
-		if part then
-			handle = part:Clone()
+	if asset and asset:IsA("Model") then
+		local visual = asset:Clone()
+		for _, descendant in ipairs(visual:GetDescendants()) do
+			if descendant:IsA("LuaSourceContainer") then
+				descendant:Destroy()
+			end
 		end
+		local handle = visual.PrimaryPart or visual:FindFirstChildWhichIsA("BasePart", true)
+		if handle then
+			local size = visual:GetExtentsSize()
+			local longest = math.max(size.X, size.Y, size.Z)
+			if longest > 2.8 then
+				visual:ScaleTo(2.8 / longest)
+			end
+			visual:PivotTo(CFrame.new(0, 1.15, 0))
+			visual.Name = "HeldBaddieVisual"
+			visual.Parent = tool
+			handle.Name = "Handle"
+			handle.Parent = tool
+
+			for _, descendant in ipairs(visual:GetDescendants()) do
+				if descendant:IsA("BasePart") then
+					descendant.Anchored = false
+					descendant.CanCollide = false
+					descendant.CanTouch = false
+					descendant.CanQuery = false
+					descendant.Massless = true
+
+					local weld = Instance.new("WeldConstraint")
+					weld.Name = "HeldBaddieWeld"
+					weld.Part0 = handle
+					weld.Part1 = descendant
+					weld.Parent = descendant
+				end
+			end
+			handle.Anchored = false
+			handle.CanCollide = false
+			handle.CanTouch = false
+			handle.CanQuery = false
+			handle.Massless = true
+			return handle
+		end
+		visual:Destroy()
+	elseif asset and asset:IsA("BasePart") then
+		local handle = asset:Clone()
+		handle.Name = "Handle"
+		handle.Anchored = false
+		handle.CanCollide = false
+		handle.CanTouch = false
+		handle.CanQuery = false
+		handle.Massless = true
+		handle.Parent = tool
+		return handle
 	end
 
-	if not handle then
-		handle = Instance.new("Part")
-		handle.Shape = Enum.PartType.Ball
-		handle.Size = Vector3.new(1.6, 1.6, 1.6)
-		handle.Material = Enum.Material.Neon
-		handle.Color = color
+	do
+		local placeholder = PlaceholderFactory.CreateBaddie(templateId, color, false)
+		placeholder:ScaleTo(0.48)
+		local handle = placeholder.PrimaryPart
+		handle.Name = "Handle"
+		for _, child in ipairs(placeholder:GetChildren()) do
+			child.Parent = tool
+		end
+		placeholder:Destroy()
+		return handle
 	end
-
-	handle.Name = "Handle"
-	handle.Anchored = false
-	handle.CanCollide = false
-	handle.CanTouch = false
-	handle.CanQuery = false
-	handle.Massless = true
-	return handle
 end
 
 function PlacementService:_createHeldTool(player, baddie)
@@ -193,7 +234,9 @@ function PlacementService:_createHeldTool(player, baddie)
 
 	local definition = BaddieConfig.Definitions[baddie.TemplateId]
 	local displayName = definition and definition.DisplayName or baddie.TemplateId
-	local color = (definition and definition.DisplayColor) or RarityConfig.RewardColors[baddie.RarityId] or Color3.new(1, 1, 1)
+	local color = (definition and definition.DisplayColor)
+		or RarityConfig.RewardColors[baddie.RarityId]
+		or Color3.new(1, 1, 1)
 	local backpack = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
 	if not backpack then
 		return
@@ -208,7 +251,7 @@ function PlacementService:_createHeldTool(player, baddie)
 	tool:SetAttribute("BaddieId", baddie.Id)
 	tool:SetAttribute("TemplateId", baddie.TemplateId)
 	tool:SetAttribute("RarityId", baddie.RarityId)
-	self:_createToolHandle(baddie.TemplateId, color).Parent = tool
+	self:_createToolHandle(tool, baddie.TemplateId, color)
 	tool.Parent = backpack
 
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")

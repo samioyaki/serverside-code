@@ -13,6 +13,7 @@ local ErrorCode = {
 	InvalidCrateAction = "InvalidCrateAction",
 	InvalidTraitAction = "InvalidTraitAction",
 	InvalidRodComponentAction = "InvalidRodComponentAction",
+	InvalidDatingAction = "InvalidDatingAction",
 	InvalidPayload = "InvalidPayload",
 	UnknownBaddie = "UnknownBaddie",
 	UnknownRod = "UnknownRod",
@@ -60,6 +61,9 @@ local ErrorCode = {
 	ComponentMaxTier = "ComponentMaxTier",
 	UnknownComponent = "UnknownComponent",
 	UnknownRodForComponent = "UnknownRodForComponent",
+	BaddieMustBePlaced = "BaddieMustBePlaced",
+	DateCooldown = "DateCooldown",
+	AffectionMaxed = "AffectionMaxed",
 }
 
 return table.freeze(ErrorCode)

@@ -78,4 +78,8 @@ function NetworkClient:SendRodComponent(payload)
 	self.Remotes[RemoteContracts.RodComponentRequestRE]:FireServer(payload)
 end
 
+function NetworkClient:SendDating(payload)
+	self.Remotes[RemoteContracts.DatingRequestRE]:FireServer(payload)
+end
+
 return NetworkClient

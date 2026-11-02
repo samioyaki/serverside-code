@@ -12,6 +12,7 @@ local RemoteContracts = {
 	NotificationRE = "NotificationRE",
 	TraitRequestRE = "TraitRequestRE",
 	RodComponentRequestRE = "RodComponentRequestRE",
+	DatingRequestRE = "DatingRequestRE",
 	RareCatchBroadcastRE = "RareCatchBroadcastRE",
 }
 

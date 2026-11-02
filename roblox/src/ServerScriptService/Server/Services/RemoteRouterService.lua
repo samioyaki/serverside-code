@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
@@ -32,6 +33,15 @@ function RemoteRouterService:Init()
 end
 
 function RemoteRouterService:Start()
+	Players.PlayerRemoving:Connect(function(player)
+		local prefix = tostring(player.UserId) .. ":"
+		for key in pairs(self.RateBuckets) do
+			if string.sub(key, 1, #prefix) == prefix then
+				self.RateBuckets[key] = nil
+			end
+		end
+	end)
+
 	self.Remotes[RemoteContracts.BootstrapRF].OnServerInvoke = function(player)
 		if not self:_checkRateLimit(player, "Bootstrap") then
 			return nil
@@ -70,7 +80,11 @@ function RemoteRouterService:Start()
 				return
 			end
 
-			if payload.Action == "Remove" then
+			if payload.Action == "VisitPlot" then
+				self.Registry:Get("PlotService"):TeleportToPlot(player)
+			elseif payload.Action == "VisitDock" then
+				self.Registry:Get("PlotService"):TeleportToDock(player)
+			elseif payload.Action == "Remove" then
 				self.Registry:Get("PlacementService"):Remove(player, payload.BaddieId)
 			elseif payload.Action == "HoldBaddie" then
 				local baddie = self.Registry:Get("PlacementService"):HoldBaddie(player, payload.BaddieId)
@@ -162,8 +176,10 @@ function RemoteRouterService:Start()
 
 			if payload.Action == "Purchase" then
 				self.Registry:Get("ShopService"):Purchase(player, payload.EntryId, payload.Quantity)
+				self:Notify(player, "Reward", NotificationCode.PurchaseSuccess, { EntryId = payload.EntryId })
 			elseif payload.Action == "EquipRod" then
 				self.Registry:Get("ShopService"):EquipRod(player, payload.EntryId)
+				self:Notify(player, "Reward", NotificationCode.PurchaseSuccess, { EntryId = payload.EntryId, Equipped = true })
 			elseif payload.Action == "PromptProduct" then
 				self.Registry:Get("MonetizationService"):PromptProduct(player, payload.EntryId, payload.Context)
 			end
@@ -293,6 +309,23 @@ function RemoteRouterService:Start()
 			end
 		end)
 	end)
+
+	self.Remotes[RemoteContracts.DatingRequestRE].OnServerEvent:Connect(function(player, payload)
+		self:_dispatch(player, function()
+			local ok, code = self:_validateDatingPayload(player, payload)
+			if not ok then
+				self:Notify(player, "Error", code)
+				return
+			end
+
+			local affection, reward = self.Registry:Get("DatingService"):DateBaddie(player, payload.BaddieId)
+			self:Notify(player, "Reward", NotificationCode.DateComplete, {
+				BaddieId = payload.BaddieId,
+				Affection = affection,
+				CoinReward = reward,
+			})
+		end)
+	end)
 end
 
 function RemoteRouterService:_ensureRemote(remoteName, className)
@@ -328,6 +361,8 @@ function RemoteRouterService:NotifyFishingResult(player, baddie, success, bonusB
 			BaddieId = baddie.Id,
 			TemplateId = baddie.TemplateId,
 			RarityId = baddie.RarityId,
+			TraitIds = baddie.TraitIds,
+			Level = baddie.Level,
 		})
 
 		if bonusBaddie then
@@ -335,6 +370,8 @@ function RemoteRouterService:NotifyFishingResult(player, baddie, success, bonusB
 				BaddieId = bonusBaddie.Id,
 				TemplateId = bonusBaddie.TemplateId,
 				RarityId = bonusBaddie.RarityId,
+				TraitIds = bonusBaddie.TraitIds,
+				Level = bonusBaddie.Level,
 				BonusCatch = true,
 			})
 		end
@@ -459,7 +496,7 @@ function RemoteRouterService:_validatePlacementPayload(player, payload)
 		return false, "InvalidPlacementAction"
 	end
 
-	if payload.Action == "ClearHeldBaddie" then
+	if payload.Action == "ClearHeldBaddie" or payload.Action == "VisitPlot" or payload.Action == "VisitDock" then
 		return true
 	end
 
@@ -606,6 +643,20 @@ function RemoteRouterService:_validateRodComponentPayload(player, payload)
 		if not schema.AllowedComponents[payload.ComponentName] then
 			return false, "UnknownComponent"
 		end
+	end
+	return true
+end
+
+function RemoteRouterService:_validateDatingPayload(player, payload)
+	local schema = NetworkSchema.DatingRequest
+	if not self:_checkRateLimit(player, "DatingRequest") then
+		return false, "InvalidDatingAction"
+	end
+	if type(payload) ~= "table" or not schema.AllowedActions[payload.Action] then
+		return false, "InvalidDatingAction"
+	end
+	if not self:_isString(payload.BaddieId, schema.MaxBaddieIdLength) then
+		return false, "InvalidDatingAction"
 	end
 	return true
 end

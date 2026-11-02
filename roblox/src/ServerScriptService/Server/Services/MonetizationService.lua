@@ -261,7 +261,7 @@ function MonetizationService:PromptProduct(player, productKey, context)
 	productKey = self:ResolveProductKey(player, productKey)
 	local sanitizedContext = self:_sanitizeProductContext(context)
 	local definition = ProductConfig.DeveloperProducts[productKey]
-	if definition and definition.ProductId ~= nil then
+	if definition and definition.ProductId and definition.ProductId > 0 then
 		if definition.GrantCrateId then
 			self:AssertPaidRandomItemsAllowed(player)
 		end
@@ -272,11 +272,7 @@ function MonetizationService:PromptProduct(player, productKey, context)
 		end
 
 		self:_rememberProductContext(player, productKey, sanitizedContext)
-		if definition.ProductId > 0 then
-			pcall(function()
-				MarketplaceService:PromptProductPurchase(player, definition.ProductId)
-			end)
-		end
+		MarketplaceService:PromptProductPurchase(player, definition.ProductId)
 
 		self.Registry:Get("RemoteRouterService"):Notify(player, "PromptPurchase", productKey, {
 			IsGamePass = false,
@@ -287,12 +283,8 @@ function MonetizationService:PromptProduct(player, productKey, context)
 	end
 
 	local passDefinition = ProductConfig.GamePasses[productKey]
-	if passDefinition and passDefinition.GamePassId ~= nil then
-		if passDefinition.GamePassId > 0 then
-			pcall(function()
-				MarketplaceService:PromptGamePassPurchase(player, passDefinition.GamePassId)
-			end)
-		end
+	if passDefinition and passDefinition.GamePassId and passDefinition.GamePassId > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, passDefinition.GamePassId)
 
 		self.Registry:Get("RemoteRouterService"):Notify(player, "PromptPurchase", productKey, {
 			IsGamePass = true,

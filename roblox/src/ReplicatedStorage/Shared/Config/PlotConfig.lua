@@ -6,6 +6,7 @@ local PlotConfig = {
 	AnchorCount = 12,
 	LockedPreviewSlots = 2,
 	InteractionDistance = 16,
+	MaxBaseSlots = 60,
 }
 
 return table.freeze(PlotConfig)

@@ -1,4 +1,5 @@
 local FishingConfig = require(script.Parent.Parent.Config.FishingConfig)
+local DatingConfig = require(script.Parent.Parent.Config.DatingConfig)
 local PlayerUpgradeConfig = require(script.Parent.Parent.Config.PlayerUpgradeConfig)
 local RebirthConfig = require(script.Parent.Parent.Config.RebirthConfig)
 local RebirthUpgradeConfig = require(script.Parent.Parent.Config.RebirthUpgradeConfig)
@@ -113,6 +114,8 @@ function FormulaUtil.GetBaddieIncomePerSecond(baddieRecord, profile)
 	local income = rarity.BaseIncomePerSecond
 	income = income * levelMultiplier / 10000
 	income = income * FormulaUtil.GetTraitIncomeMultiplierBps(baddieRecord) / 10000
+	local affection = math.clamp(math.floor(tonumber(baddieRecord.Affection) or 0), 0, DatingConfig.MaxAffection)
+	income = income * (10000 + affection * DatingConfig.IncomeBonusBpsPerHeart) / 10000
 	income = income * (10000 + (profile.Progression.RebirthCount * RebirthConfig.PassiveIncomePerRebirthBps)) / 10000
 	income = income * (10000 + FormulaUtil.GetRebirthUpgradeBonusBps(profile, "GlobalIncome", "IncomeBonusBps")) / 10000
 	income = income * (10000 + profile.Progression.SecretIncomeBonusBps) / 10000
@@ -184,6 +187,7 @@ function FormulaUtil.ApplyLuckToWeights(weightMap, profile, skillMultiplierBps, 
 	local adjusted = {}
 	local luckMultiplierBps = FormulaUtil.BuildLuckMultiplierBps(profile, skillMultiplierBps)
 	local rarityOrder = RarityConfig.Order
+	local luckScalingByRarityIndex = { 0, 1000, 2500, 4500, 7000, 10000, 15000 }
 	local bonusFloorApplied = false
 	local randomSource = randomObject or Random.new()
 
@@ -192,14 +196,16 @@ function FormulaUtil.ApplyLuckToWeights(weightMap, profile, skillMultiplierBps, 
 	end
 
 	for rarityId, weight in pairs(weightMap) do
-		local bonusBps = luckMultiplierBps
+		local rarityIndex = table.find(rarityOrder, rarityId) or 1
+		local luckBonusBps = math.max(0, luckMultiplierBps - 10000)
+		local rarityLuckScaleBps = luckScalingByRarityIndex[rarityIndex] or 0
+		local bonusBps = 10000 + math.floor(luckBonusBps * rarityLuckScaleBps / 10000)
 		if rarityId == "Mythic" then
 			bonusBps += rod.MythicBonusBps or 0
 		elseif rarityId == "Secret" then
 			bonusBps = math.floor(bonusBps * (rod.SecretWeightMultiplierBps or 10000) / 10000)
 		end
 
-		local rarityIndex = table.find(rarityOrder, rarityId) or 1
 		if rod.MinimumRarityIndex and rarityIndex < rod.MinimumRarityIndex then
 			adjusted[rarityId] = 0
 		elseif bonusFloorApplied and rarityIndex < rod.BonusMinRarityIndex then

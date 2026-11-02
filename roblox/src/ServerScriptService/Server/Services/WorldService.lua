@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -66,7 +67,7 @@ local SHOP_DEFINITIONS = {
 		Id = "TraitLab",
 		DisplayName = "Trait Lab",
 		Position = Vector3.new(18, 3, 16),
-		Entries = { "TraitReroll", "TargetedTraitRoll", "GodTierTraitRoll", "LockTraitSlot", "TraitUpgradePack" },
+		Entries = { "TraitRerollCredit", "TargetedTraitCredit", "TraitUpgradeCredit" },
 	},
 	{
 		Id = "ComponentForge",
@@ -129,6 +130,50 @@ local function ensurePart(parent, name, properties)
 	return part
 end
 
+local function ensureBillboard(part, name, text, color, size, offset)
+	local billboard = part:FindFirstChild(name)
+	if not billboard then
+		billboard = Instance.new("BillboardGui")
+		billboard.Name = name
+		billboard.Parent = part
+	end
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 150
+	billboard.Size = size or UDim2.fromOffset(420, 90)
+	billboard.StudsOffsetWorldSpace = offset or Vector3.new(0, 4, 0)
+
+	local label = billboard:FindFirstChild("Label")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.Parent = billboard
+	end
+	label.BackgroundColor3 = Color3.fromRGB(11, 28, 43)
+	label.BackgroundTransparency = 0.08
+	label.BorderSizePixel = 0
+	label.Font = Enum.Font.GothamBlack
+	label.Text = text
+	label.TextColor3 = color or Color3.fromRGB(124, 225, 255)
+	label.TextScaled = true
+	label.TextWrapped = true
+	label.Size = UDim2.fromScale(1, 1)
+
+	if not label:FindFirstChildOfClass("UICorner") then
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 12)
+		corner.Parent = label
+	end
+	if not label:FindFirstChildOfClass("UIStroke") then
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(70, 153, 195)
+		stroke.Thickness = 2
+		stroke.Parent = label
+	end
+
+	return billboard
+end
+
 function WorldService.new(registry)
 	return setmetatable({
 		Registry = registry,
@@ -157,6 +202,25 @@ function WorldService:Init()
 end
 
 function WorldService:_buildWorld()
+	Lighting.Brightness = 2.4
+	Lighting.ClockTime = 15.2
+	Lighting.EnvironmentDiffuseScale = 0.45
+	Lighting.EnvironmentSpecularScale = 0.6
+	Lighting.OutdoorAmbient = Color3.fromRGB(138, 158, 181)
+	Lighting.GlobalShadows = true
+
+	local atmosphere = Lighting:FindFirstChild("FishABaddieAtmosphere")
+	if not atmosphere then
+		atmosphere = Instance.new("Atmosphere")
+		atmosphere.Name = "FishABaddieAtmosphere"
+		atmosphere.Parent = Lighting
+	end
+	atmosphere.Color = Color3.fromRGB(199, 226, 255)
+	atmosphere.Decay = Color3.fromRGB(89, 144, 184)
+	atmosphere.Density = 0.22
+	atmosphere.Glare = 0.12
+	atmosphere.Haze = 0.8
+
 	ensurePart(Workspace, "Baseplate", {
 		Anchored = true,
 		Size = Vector3.new(512, 8, 512),
@@ -173,7 +237,8 @@ function WorldService:_buildWorld()
 	end
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(12, 1, 12)
-	spawn.Position = Vector3.new(0, 1, 52)
+	spawn.Position = Vector3.new(0, 2.2, -34)
+	spawn.CFrame = CFrame.lookAt(spawn.Position, Vector3.new(0, 2.2, -80))
 	spawn.Neutral = true
 	spawn.CanCollide = true
 
@@ -195,12 +260,16 @@ function WorldService:_buildWorld()
 
 	self.WaterPart = ensurePart(self.GameFolder, "Water", {
 		Anchored = true,
-		Size = Vector3.new(86, 1, 120),
-		Position = Vector3.new(0, 0, -44),
+		Size = Vector3.new(110, 1, 180),
+		Position = Vector3.new(0, 0, -54),
 		Color = Color3.fromRGB(46, 147, 255),
 		Material = Enum.Material.Glass,
 		Transparency = 0.25,
 	})
+	self.WaterPart.Reflectance = 0.08
+	self.WaterPart:SetAttribute("FishingShorelineZ", -14)
+
+	self:_buildFishingDock()
 
 	for index = 1, PlotConfig.AnchorCount do
 		self:GetOrCreatePlotAnchor(index)
@@ -208,6 +277,86 @@ function WorldService:_buildWorld()
 
 	self:_buildLeaderboardBoards()
 	self:_buildShopNPCs()
+end
+
+function WorldService:_buildFishingDock()
+	local dockFolder = ensureFolder(self.GameFolder, "FishingDock")
+	local wood = Color3.fromRGB(139, 91, 49)
+	local darkWood = Color3.fromRGB(87, 56, 37)
+
+	ensurePart(dockFolder, "Walkway", {
+		Anchored = true,
+		Size = Vector3.new(14, 1, 52),
+		Position = Vector3.new(0, 1.2, -23),
+		Color = wood,
+		Material = Enum.Material.WoodPlanks,
+	})
+	ensurePart(dockFolder, "FishingDeck", {
+		Anchored = true,
+		Size = Vector3.new(42, 1, 18),
+		Position = Vector3.new(0, 1.2, -52),
+		Color = wood,
+		Material = Enum.Material.WoodPlanks,
+	})
+
+	for index, x in ipairs({ -19, -10, 10, 19 }) do
+		for sideIndex, z in ipairs({ -46, -58 }) do
+			ensurePart(dockFolder, string.format("Post_%d_%d", index, sideIndex), {
+				Anchored = true,
+				Size = Vector3.new(1.15, 6, 1.15),
+				Position = Vector3.new(x, -0.2, z),
+				Color = darkWood,
+				Material = Enum.Material.Wood,
+			})
+		end
+	end
+
+	for index, x in ipairs({ -16, -8, 0, 8, 16 }) do
+		local marker = ensurePart(dockFolder, "FishingMarker_" .. index, {
+			Anchored = true,
+			CanCollide = false,
+			Size = Vector3.new(5.5, 0.18, 3.8),
+			Position = Vector3.new(x, 1.78, -59.5),
+			Color = Color3.fromRGB(63, 199, 236),
+			Material = Enum.Material.Neon,
+			Transparency = 0.45,
+		})
+		marker:SetAttribute("FishingSpot", true)
+	end
+
+	local signPost = ensurePart(dockFolder, "FishingSign", {
+		Anchored = true,
+		CanCollide = false,
+		Size = Vector3.new(1, 1, 1),
+		Position = Vector3.new(0, 2, -42),
+		Transparency = 1,
+	})
+	ensureBillboard(
+		signPost,
+		"FishingInstructions",
+		"FISH A BADDIE\nHold, then release in the green zone!",
+		Color3.fromRGB(125, 227, 255),
+		UDim2.fromOffset(430, 100),
+		Vector3.new(0, 5, 0)
+	)
+
+	for index, x in ipairs({ -34, 34 }) do
+		local buoy = ensurePart(dockFolder, "Buoy_" .. index, {
+			Anchored = true,
+			CanCollide = false,
+			Size = Vector3.new(2.4, 2.4, 2.4),
+			Position = Vector3.new(x, 1.2, -68),
+			Color = Color3.fromRGB(255, 91, 70),
+			Material = Enum.Material.Neon,
+			Shape = Enum.PartType.Ball,
+		})
+		local light = buoy:FindFirstChild("Glow") or Instance.new("PointLight")
+		light.Name = "Glow"
+		light.Brightness = 1.4
+		light.Color = buoy.Color
+		light.Range = 12
+		light.Parent = buoy
+	end
 end
 
 function WorldService:_ensureSurfaceText(surfaceGui, name, position, size, textSize)
@@ -417,6 +566,10 @@ function WorldService:GetFishingWaterPart()
 	return self.WaterPart
 end
 
+function WorldService:GetDockArrivalCFrame()
+	return CFrame.lookAt(Vector3.new(0, 4, -37), Vector3.new(0, 4, -80))
+end
+
 function WorldService:GetFishingCastsFolder()
 	return self.FishingCastsFolder
 end
@@ -443,6 +596,10 @@ function WorldService:IsPointInFishingWater(point, margin)
 	margin = margin or 0
 	local localPoint = water.CFrame:PointToObjectSpace(point)
 	local halfSize = water.Size / 2
+	local shorelineZ = water:GetAttribute("FishingShorelineZ")
+	if type(shorelineZ) == "number" and point.Z > shorelineZ then
+		return false
+	end
 
 	return math.abs(localPoint.X) <= halfSize.X + margin and math.abs(localPoint.Z) <= halfSize.Z + margin
 end

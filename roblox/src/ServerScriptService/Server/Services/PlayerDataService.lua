@@ -194,31 +194,31 @@ function PlayerDataService:_compactProfile(profile, now)
 
 	local receiptOrder = profile.Receipts.Order or {}
 	local compactedReceipts = {}
-	local compactedOrder = {}
+	local compactedReceiptOrder = {}
 
 	for _, purchaseId in ipairs(receiptOrder) do
 		if profile.Receipts.Processed[purchaseId] and not compactedReceipts[purchaseId] then
 			compactedReceipts[purchaseId] = true
-			table.insert(compactedOrder, purchaseId)
+			table.insert(compactedReceiptOrder, purchaseId)
 		end
 	end
 
-	if #compactedOrder == 0 then
+	if #compactedReceiptOrder == 0 then
 		for purchaseId in pairs(profile.Receipts.Processed) do
-			table.insert(compactedOrder, purchaseId)
+			table.insert(compactedReceiptOrder, purchaseId)
 		end
 	end
 
-	while #compactedOrder > RECEIPT_HISTORY_LIMIT do
-		table.remove(compactedOrder, 1)
+	while #compactedReceiptOrder > RECEIPT_HISTORY_LIMIT do
+		table.remove(compactedReceiptOrder, 1)
 	end
 
 	local boundedReceipts = {}
-	for _, purchaseId in ipairs(compactedOrder) do
+	for _, purchaseId in ipairs(compactedReceiptOrder) do
 		boundedReceipts[purchaseId] = true
 	end
 
-	profile.Receipts.Order = compactedOrder
+	profile.Receipts.Order = compactedReceiptOrder
 	profile.Receipts.Processed = boundedReceipts
 end
 
@@ -263,6 +263,11 @@ function PlayerDataService:OpenSession(player)
 		self.SessionLocks:ReleaseLock(player.UserId)
 		self.OpeningByPlayer[player] = nil
 		error(rawProfile, 0)
+	end
+	if not player.Parent then
+		self.SessionLocks:ReleaseLock(player.UserId)
+		self.OpeningByPlayer[player] = nil
+		fail("SessionUnavailable")
 	end
 
 	local profile = ProfileSchema.Migrate(rawProfile, now)
@@ -336,6 +341,7 @@ function PlayerDataService:WaitForSession(player)
 	end
 
 	fail("SessionUnavailable")
+	return nil
 end
 
 function PlayerDataService:FindSession(player)

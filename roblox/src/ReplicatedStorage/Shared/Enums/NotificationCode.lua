@@ -14,12 +14,15 @@ local NotificationCode = {
 	TraitLocked = "TraitLocked",
 	TraitUpgraded = "TraitUpgraded",
 	ComponentUpgraded = "ComponentUpgraded",
+	DateComplete = "DateComplete",
+	PurchaseSuccess = "PurchaseSuccess",
 	RareCatchBroadcast = "RareCatchBroadcast",
 	SecretCaughtBroadcast = "SecretCaughtBroadcast",
 	ShopOpened = "ShopOpened",
 	BaddieHeld = "BaddieHeld",
 	BaddiePlaced = "BaddiePlaced",
 	BaddiePickedUp = "BaddiePickedUp",
+	BaddieInspect = "BaddieInspect",
 }
 
 return table.freeze(NotificationCode)

@@ -31,7 +31,7 @@ local definitions = {
 	Brine = createBaddie("Brine", "Brine", "Epic", Color3.fromRGB(197, 87, 255)),
 	Marina = createBaddie("Marina", "Marina", "Legendary", Color3.fromRGB(255, 187, 46)),
 	Wave = createBaddie("Wave", "Wave", "Legendary", Color3.fromRGB(255, 142, 44)),
-	Nautic = createBaddie("Nautic", "Nautic", "Legendary", Color3.fromRGB(255, 215, 55)),
+	Nautie = createBaddie("Nautie", "Nautie", "Legendary", Color3.fromRGB(255, 215, 55)),
 	Trench = createBaddie("Trench", "Trench", "Mythic", Color3.fromRGB(255, 57, 119)),
 	Abyss = createBaddie("Abyss", "Abyss", "Mythic", Color3.fromRGB(223, 55, 116)),
 	Maris = createBaddie("Maris", "Maris", "Mythic", Color3.fromRGB(255, 89, 159)),
@@ -39,11 +39,17 @@ local definitions = {
 	Tide = createBaddie("Tide", "Tide", "Secret", Color3.fromRGB(255, 27, 27)),
 }
 
+-- Preserve old inventory records created before the supplied Nautie model was imported.
+definitions.Nautic = createBaddie("Nautic", "Nautie", "Legendary", Color3.fromRGB(255, 215, 55))
+definitions.Nautic.LegacyAlias = true
+
 local byRarity = {}
 
 for templateId, definition in pairs(definitions) do
-	byRarity[definition.RarityId] = byRarity[definition.RarityId] or {}
-	table.insert(byRarity[definition.RarityId], templateId)
+	if not definition.LegacyAlias then
+		byRarity[definition.RarityId] = byRarity[definition.RarityId] or {}
+		table.insert(byRarity[definition.RarityId], templateId)
+	end
 end
 
 local BaddieConfig = {

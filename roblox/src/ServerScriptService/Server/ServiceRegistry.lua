@@ -16,6 +16,7 @@ function ServiceRegistry.new()
 			"InventoryService",
 			"RollService",
 			"TraitService",
+			"DatingService",
 			"RodComponentService",
 			"FishingService",
 			"RodToolService",

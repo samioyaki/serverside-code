@@ -36,6 +36,8 @@ function InventoryService:AddBaddie(profile, templateId, rarityId, traitId, sour
 		Level = 1,
 		TraitIds = { traitId or "None" },
 		TraitLocks = { false },
+		Affection = 0,
+		LastDatedAt = 0,
 		State = BaddieState.Inventory,
 		Source = source,
 		CreatedAt = now,

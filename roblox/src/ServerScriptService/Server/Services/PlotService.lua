@@ -3,10 +3,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
 local BaddieConfig = require(Shared.Config.BaddieConfig)
+local NotificationCode = require(Shared.Enums.NotificationCode)
 local FormulaUtil = require(Shared.Util.FormulaUtil)
 local PlotConfig = require(Shared.Config.PlotConfig)
 local RarityConfig = require(Shared.Config.RarityConfig)
 local GridUtil = require(Shared.Util.GridUtil)
+local PlaceholderFactory = require(Shared.Util.PlaceholderFactory)
 local TableUtil = require(Shared.Util.TableUtil)
 
 local PlotService = {}
@@ -126,6 +128,30 @@ end
 
 function PlotService:GetAssignedPlot(player)
 	return self.AssignedPlotsByPlayer[player]
+end
+
+function PlotService:_teleportCharacter(player, targetCFrame)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not humanoid or humanoid.Health <= 0 then
+		fail("FishingNoCharacter")
+	end
+
+	self.Registry:Get("FishingService"):CancelCast(player)
+	character:PivotTo(targetCFrame)
+end
+
+function PlotService:TeleportToPlot(player)
+	local plot = self:GetAssignedPlot(player)
+	if not plot then
+		fail("PlotNotAssigned")
+	end
+
+	self:_teleportCharacter(player, plot.Anchor.CFrame * CFrame.new(0, 4, 8))
+end
+
+function PlotService:TeleportToDock(player)
+	self:_teleportCharacter(player, self.Registry:Get("WorldService"):GetDockArrivalCFrame())
 end
 
 function PlotService:GetCellWorldPosition(player, gridX, gridY)
@@ -283,6 +309,7 @@ function PlotService:_writeBaddieAttributes(visual, owner, baddie, definition, i
 		OwnerName = owner.DisplayName,
 		TraitSummary = self:_buildTraitSummary(baddie),
 		IncomePerSecond = incomePerSecond,
+		Affection = baddie.Affection or 0,
 	}
 
 	for key, value in pairs(attributes) do
@@ -322,12 +349,36 @@ function PlotService:_createBaddieBillboard(visual, baddie, definition, incomePe
 	label.TextSize = 13
 	label.TextWrapped = true
 	label.Size = UDim2.fromScale(1, 1)
-	label.Text = string.format("%s\n%s  Lv.%d\n%.1f coins/s", definition.DisplayName, baddie.RarityId, baddie.Level, incomePerSecond)
+	label.Text = string.format(
+		"%s  %s\n%s  Lv.%d\n%.1f coins/s",
+		definition.DisplayName,
+		string.rep("♥", baddie.Affection or 0),
+		baddie.RarityId,
+		baddie.Level,
+		incomePerSecond
+	)
 	label.Parent = billboard
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = label
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "InspectBaddiePrompt"
+	prompt.ActionText = "Interact"
+	prompt.ObjectText = definition.DisplayName
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = effectPart
+	prompt.Triggered:Connect(function(triggeringPlayer)
+		self.Registry:Get("RemoteRouterService"):Notify(triggeringPlayer, "Interaction", NotificationCode.BaddieInspect, {
+			BaddieId = baddie.Id,
+			OwnerUserId = visual:GetAttribute("OwnerUserId"),
+		})
+	end)
 end
 
 function PlotService:_applyRarityEffects(visual, rarityId)
@@ -396,7 +447,6 @@ function PlotService:_createPlacedBaddieVisual(player, baddie, definition, place
 		visual.Name = baddie.Id
 
 		if visual:IsA("Model") then
-			visual:PivotTo(CFrame.new(position) * rotationCFrame)
 			for _, descendant in ipairs(visual:GetDescendants()) do
 				if descendant:IsA("BasePart") then
 					descendant.Anchored = true
@@ -406,16 +456,39 @@ function PlotService:_createPlacedBaddieVisual(player, baddie, definition, place
 		elseif visual:IsA("BasePart") then
 			visual.Anchored = true
 			visual.CanCollide = false
-			visual.CFrame = CFrame.new(position) * rotationCFrame
 		end
 	else
-		visual = Instance.new("Part")
+		visual = PlaceholderFactory.CreateBaddie(
+			definition.Id,
+			definition.DisplayColor or (RarityConfig.RewardColors[baddie.RarityId] or Color3.new(1, 1, 1)),
+			true
+		)
 		visual.Name = baddie.Id
-		visual.Anchored = true
-		visual.Size = Vector3.new(3.5, 3.5, 3.5)
-		visual.Position = position
-		visual.Material = Enum.Material.Neon
-		visual.Color = definition.DisplayColor or (RarityConfig.RewardColors[baddie.RarityId] or Color3.new(1, 1, 1))
+	end
+
+	local desiredBottomY = position.Y - 0.55
+	if visual:IsA("Model") then
+		local extents = visual:GetExtentsSize()
+		local largest = math.max(extents.X, extents.Y, extents.Z)
+		if asset and largest > 4.2 then
+			visual:ScaleTo(4.2 / largest)
+		elseif asset and largest > 0.01 and largest < 2 then
+			visual:ScaleTo(2 / largest)
+		end
+		visual:PivotTo(visual:GetPivot() * rotationCFrame)
+		local boundsCFrame, boundsSize = visual:GetBoundingBox()
+		local shift = Vector3.new(
+			position.X - boundsCFrame.Position.X,
+			desiredBottomY - (boundsCFrame.Position.Y - (boundsSize.Y / 2)),
+			position.Z - boundsCFrame.Position.Z
+		)
+		visual:PivotTo(CFrame.new(shift) * visual:GetPivot())
+	elseif visual:IsA("BasePart") then
+		local largest = math.max(visual.Size.X, visual.Size.Y, visual.Size.Z)
+		if largest > 4.2 then
+			visual.Size *= 4.2 / largest
+		end
+		visual.CFrame = CFrame.new(position.X, desiredBottomY + (visual.Size.Y / 2), position.Z) * rotationCFrame
 	end
 
 	local session = self.Registry:Get("PlayerDataService"):FindSession(player)

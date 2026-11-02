@@ -37,6 +37,11 @@ function DataStoreAdapter.new(name)
 
 	memoryStores[name] = self.Memory
 
+	-- Studio playtests should boot immediately and stay isolated from live data.
+	if RunService:IsStudio() then
+		return self
+	end
+
 	local ok, store = pcall(function()
 		return DataStoreService:GetDataStore(name)
 	end)

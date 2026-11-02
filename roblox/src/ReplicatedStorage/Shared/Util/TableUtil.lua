@@ -17,8 +17,14 @@ function TableUtil.AssignMissing(target, defaults)
 	for key, value in pairs(defaults) do
 		if target[key] == nil then
 			target[key] = TableUtil.DeepCopy(value)
-		elseif type(target[key]) == "table" and type(value) == "table" then
-			TableUtil.AssignMissing(target[key], value)
+		elseif type(value) == "table" then
+			if type(target[key]) ~= "table" then
+				target[key] = TableUtil.DeepCopy(value)
+			else
+				TableUtil.AssignMissing(target[key], value)
+			end
+		elseif type(target[key]) ~= type(value) then
+			target[key] = value
 		end
 	end
 end

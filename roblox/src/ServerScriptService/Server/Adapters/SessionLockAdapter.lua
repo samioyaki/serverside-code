@@ -15,6 +15,11 @@ function SessionLockAdapter.new(name, ttlSeconds)
 		Map = nil,
 	}, SessionLockAdapter)
 
+	-- Local Studio sessions cannot conflict with live server session locks.
+	if RunService:IsStudio() then
+		return self
+	end
+
 	local ok, map = pcall(function()
 		return MemoryStoreService:GetHashMap(name)
 	end)
@@ -123,7 +128,13 @@ function SessionLockAdapter:ReleaseLock(userId)
 
 	if self.Map then
 		local ok, result = self:_runWithRetry(function()
-			self.Map:RemoveAsync(key)
+			return self.Map:UpdateAsync(key, function(current)
+				if current and current.JobId == game.JobId then
+					return nil
+				end
+
+				return current
+			end, self.TTLSeconds + 5)
 		end)
 
 		if not ok and not RunService:IsStudio() then

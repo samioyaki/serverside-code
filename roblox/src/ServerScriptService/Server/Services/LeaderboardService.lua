@@ -1,5 +1,6 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local LeaderboardService = {}
 LeaderboardService.__index = LeaderboardService
@@ -51,6 +52,10 @@ function LeaderboardService.new(registry)
 end
 
 function LeaderboardService:Init()
+	if RunService:IsStudio() then
+		return
+	end
+
 	for _, definition in ipairs(BOARD_DEFINITIONS) do
 		local ok, store = pcall(function()
 			return DataStoreService:GetOrderedDataStore(definition.StoreName)

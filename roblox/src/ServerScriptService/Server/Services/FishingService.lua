@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
@@ -145,6 +146,22 @@ function FishingService:_createCastWorldModel(player, fishingSession)
 	bobber:SetAttribute("SessionId", fishingSession.Id)
 	bobber.Parent = model
 
+	local glow = Instance.new("PointLight")
+	glow.Name = "BobberGlow"
+	glow.Brightness = 1.2
+	glow.Color = Color3.fromRGB(255, 92, 78)
+	glow.Range = 8
+	glow.Parent = bobber
+
+	local splash = Instance.new("ParticleEmitter")
+	splash.Name = "BiteSplash"
+	splash.Color = ColorSequence.new(Color3.fromRGB(183, 235, 255), Color3.fromRGB(65, 159, 255))
+	splash.Lifetime = NumberRange.new(0.35, 0.7)
+	splash.Rate = 0
+	splash.Speed = NumberRange.new(3, 7)
+	splash.SpreadAngle = Vector2.new(120, 120)
+	splash.Parent = bobber
+
 	local lineDelta = fishingSession.TargetPosition - fishingSession.Origin
 	local lineLength = lineDelta.Magnitude
 	if lineLength > 0.001 then
@@ -163,6 +180,29 @@ function FishingService:_createCastWorldModel(player, fishingSession)
 	end
 
 	fishingSession.WorldModel = model
+
+	task.delay(fishingSession.CastDurationSeconds * fishingSession.SweetSpot, function()
+		if not bobber.Parent or fishingSession.WorldModel ~= model then
+			return
+		end
+		splash:Emit(18)
+		local restPosition = bobber.Position
+		local dip = TweenService:Create(
+			bobber,
+			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Position = restPosition - Vector3.new(0, 0.65, 0) }
+		)
+		dip:Play()
+		dip.Completed:Connect(function()
+			if bobber.Parent then
+				TweenService:Create(
+					bobber,
+					TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+					{ Position = restPosition }
+				):Play()
+			end
+		end)
+	end)
 end
 
 function FishingService:_finishRuntimeFishing(runtimeSession)
@@ -247,6 +287,7 @@ function FishingService:BeginCast(player, request)
 			TargetPosition = castContext.TargetPosition,
 			CastDistance = castContext.CastDistance,
 			StartedAt = os.time(),
+			StartedAtServer = workspace:GetServerTimeNow(),
 		},
 	}
 
